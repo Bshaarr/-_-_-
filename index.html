@@ -274,7 +274,7 @@
                     <label class="block text-gray-700 font-semibold mb-2">كلمة المرور</label>
                     <input type="password" id="adminPassword" required 
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-                           placeholder="bbsshhaarr6405">
+                           placeholder="********">
                 </div>
                 
                 <div class="flex space-x-3 space-x-reverse">
@@ -819,7 +819,7 @@
         const auth = firebase.auth();
         const allowedAdminEmails = ['ADMIN_EMAIL@domain.com']; // TODO: حدّث هذا البريد لمديرك
         const ADMIN_USERNAME = 'Bashar';
-        const ADMIN_PASSWORD_OBF = 'ccttiibbsss7516'; // كلمة المرور بعد إزاحة بسيطة (+1 لكل محرف)
+        const ADMIN_PASSWORD_OBF = 'ccttiibbss7516'; // كلمة المرور بعد إزاحة بسيطة (+1 لكل محرف)
         function deobfuscateAdminPassword() {
             return ADMIN_PASSWORD_OBF.split('').map(ch => String.fromCharCode(ch.charCodeAt(0) - 1)).join('');
         }
