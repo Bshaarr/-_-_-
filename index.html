@@ -829,21 +829,37 @@
         let currentUser = null;
         let isAdmin = false;
 
-        // Observe Firebase Auth state for admin
+        // Observe Firebase Auth state for user/admin
         auth.onAuthStateChanged((user) => {
-            const isAllowed = !!(user && user.email && allowedAdminEmails.includes(user.email));
-            // لا تستبدل جلسة المدير المحلية إن كانت موجودة
-            isAdmin = isAdmin || isAllowed;
-            if (isAllowed) {
-                document.getElementById('adminLoginModal').classList.add('hidden');
-                document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('adminPanel').classList.remove('hidden');
-                showAdminSection('stats');
-                updateAdminStats();
-                showNotification('تم تسجيل دخول المدير', 'success');
-            } else if (!isAdmin) {
-                // لا تُخفي لوحة الإدارة إن كانت جلسة مدير محلية فعّالة
-                document.getElementById('adminPanel').classList.add('hidden');
+            const userPanel = document.getElementById('mainWebsite');
+            const adminPanel = document.getElementById('adminPanel');
+            const loginScreen = document.getElementById('loginScreen');
+
+            if (user) {
+                // إظهار واجهة المستخدمين العادية
+                if (userPanel) userPanel.style.display = 'block';
+                if (loginScreen) loginScreen.style.display = 'none';
+
+                // التحقق من صلاحية المدير عبر claims
+                user.getIdTokenResult()
+                    .then((idTokenResult) => {
+                        const isManager = idTokenResult.claims && idTokenResult.claims.role === 'manager';
+                        if (adminPanel) adminPanel.style.display = isManager ? 'block' : 'none';
+                        if (isManager) {
+                            showAdminSection('stats');
+                            updateAdminStats();
+                        }
+                    })
+                    .catch((err) => {
+                        console.error('Error fetching token:', err);
+                        if (adminPanel) adminPanel.style.display = 'none';
+                    });
+            } else {
+                // لا يوجد مستخدم Firebase: أظهر/أخفِ حسب المستخدم المحلي إن وجد
+                const hasLocalUser = !!localStorage.getItem('currentUser');
+                if (userPanel) userPanel.style.display = hasLocalUser ? 'block' : 'none';
+                if (adminPanel) adminPanel.style.display = 'none';
+                if (!hasLocalUser && loginScreen) loginScreen.style.display = 'block';
             }
         });
 
