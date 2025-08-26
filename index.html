@@ -13,6 +13,23 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <style>
+        <!-- بعد تحميل Firebase وتهيئته -->
+<script>
+firebase.auth().onAuthStateChanged(user => {
+  if (user) {
+    user.getIdTokenResult()
+      .then(idTokenResult => {
+        if (idTokenResult.claims.role === 'manager') {
+          // عرض لوحة المدير فقط للمدير
+          document.getElementById('adminPanel').style.display = 'block';
+        }
+      });
+  } else {
+    // المستخدم غير مسجل الدخول
+    document.getElementById('adminPanel').style.display = 'none';
+  }
+});
+</script>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
         
         * {
