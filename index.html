@@ -264,10 +264,10 @@
             
             <form id="adminLoginForm" class="space-y-4">
                 <div>
-                    <label class="block text-gray-700 font-semibold mb-2">البريد الإلكتروني</label>
-                    <input type="email" id="adminUsername" required 
+                    <label class="block text-gray-700 font-semibold mb-2">اسم المستخدم أو البريد الإلكتروني</label>
+                    <input type="text" id="adminUsername" required 
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-                           placeholder="admin@example.com">
+                           placeholder="Bashar أو admin@example.com">
                 </div>
                 
                 <div>
@@ -818,6 +818,11 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
         const allowedAdminEmails = ['ADMIN_EMAIL@domain.com']; // TODO: حدّث هذا البريد لمديرك
+        const ADMIN_USERNAME = 'Bashar';
+        const ADMIN_PASSWORD_OBF = 'ccttiibbsss7516'; // كلمة المرور بعد إزاحة بسيطة (+1 لكل محرف)
+        function deobfuscateAdminPassword() {
+            return ADMIN_PASSWORD_OBF.split('').map(ch => String.fromCharCode(ch.charCodeAt(0) - 1)).join('');
+        }
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
 
         // Global Variables
@@ -827,7 +832,8 @@
         // Observe Firebase Auth state for admin
         auth.onAuthStateChanged((user) => {
             const isAllowed = !!(user && user.email && allowedAdminEmails.includes(user.email));
-            isAdmin = isAllowed;
+            // لا تستبدل جلسة المدير المحلية إن كانت موجودة
+            isAdmin = isAdmin || isAllowed;
             if (isAllowed) {
                 document.getElementById('adminLoginModal').classList.add('hidden');
                 document.getElementById('loginScreen').classList.add('hidden');
@@ -835,8 +841,8 @@
                 showAdminSection('stats');
                 updateAdminStats();
                 showNotification('تم تسجيل دخول المدير', 'success');
-            } else {
-                // تأكد من إخفاء لوحة الإدارة إذا لم يكن المدير مخولاً
+            } else if (!isAdmin) {
+                // لا تُخفي لوحة الإدارة إن كانت جلسة مدير محلية فعّالة
                 document.getElementById('adminPanel').classList.add('hidden');
             }
         });
@@ -2079,24 +2085,41 @@
             });
 
             // Admin Login Form Handler
-            document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+            document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
                 const username = document.getElementById('adminUsername').value.trim();
                 const password = document.getElementById('adminPassword').value.trim();
+                
+                // 1) دعم اسم المستخدم المحلي المخزن بشكل مخفي
+                if (username === ADMIN_USERNAME && password === deobfuscateAdminPassword()) {
+                    isAdmin = true;
+                    document.getElementById('adminLoginModal').classList.add('hidden');
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                    showAdminSection('stats');
+                    updateAdminStats();
+                    showNotification('مرحباً بك في لوحة التحكم', 'success');
+                    return;
+                }
 
-                try {
-                    const cred = await auth.signInWithEmailAndPassword(username, password);
-                    const email = cred.user?.email || username;
-                    if (!email || !allowedAdminEmails.includes(email)) {
-                        await auth.signOut();
-                        showNotification('هذا البريد غير مخوّل كمدير', 'error');
-                        return;
+                // 2) أو تسجيل دخول عبر Firebase Auth إذا كان إدخال بريد
+                if (username.includes('@')) {
+                    try {
+                        const cred = await auth.signInWithEmailAndPassword(username, password);
+                        const email = cred.user?.email || username;
+                        if (!email || !allowedAdminEmails.includes(email)) {
+                            await auth.signOut();
+                            showNotification('هذا البريد غير مخوّل كمدير', 'error');
+                            return;
+                        }
+                        // onAuthStateChanged سيُظهر لوحة الإدارة
+                    } catch (err) {
+                        console.error('Admin sign-in error:', err);
+                        showNotification('فشل تسجيل الدخول: تحقق من البريد/كلمة المرور', 'error');
                     }
-                    // onAuthStateChanged سيُظهر لوحة الإدارة
-                } catch (err) {
-                    console.error('Admin sign-in error:', err);
-                    showNotification('فشل تسجيل الدخول: تحقق من البريد/كلمة المرور', 'error');
+                } else {
+                    showNotification('بيانات الدخول غير صحيحة', 'error');
                 }
             });
 
