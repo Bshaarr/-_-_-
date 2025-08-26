@@ -835,31 +835,48 @@
             const adminPanel = document.getElementById('adminPanel');
             const loginScreen = document.getElementById('loginScreen');
 
-            if (user) {
-                // إظهار واجهة المستخدمين العادية
-                if (userPanel) userPanel.style.display = 'block';
-                if (loginScreen) loginScreen.style.display = 'none';
+            const showEl = (el) => { if (!el) return; el.classList.remove('hidden'); };
+            const hideEl = (el) => { if (!el) return; el.classList.add('hidden'); };
 
-                // التحقق من صلاحية المدير عبر claims
+            if (user) {
+                // جميع المستخدمين المسجلين في Firebase يرون الواجهة العادية
+                showEl(userPanel);
+                hideEl(loginScreen);
+
+                // تحقق من role للمدير
                 user.getIdTokenResult()
                     .then((idTokenResult) => {
                         const isManager = idTokenResult.claims && idTokenResult.claims.role === 'manager';
-                        if (adminPanel) adminPanel.style.display = isManager ? 'block' : 'none';
                         if (isManager) {
+                            showEl(adminPanel);
                             showAdminSection('stats');
                             updateAdminStats();
+                        } else {
+                            hideEl(adminPanel);
                         }
                     })
                     .catch((err) => {
                         console.error('Error fetching token:', err);
-                        if (adminPanel) adminPanel.style.display = 'none';
+                        hideEl(adminPanel);
                     });
             } else {
-                // لا يوجد مستخدم Firebase: أظهر/أخفِ حسب المستخدم المحلي إن وجد
+                // لا يوجد مستخدم Firebase
                 const hasLocalUser = !!localStorage.getItem('currentUser');
-                if (userPanel) userPanel.style.display = hasLocalUser ? 'block' : 'none';
-                if (adminPanel) adminPanel.style.display = 'none';
-                if (!hasLocalUser && loginScreen) loginScreen.style.display = 'block';
+                if (hasLocalUser) {
+                    showEl(userPanel);
+                    hideEl(loginScreen);
+                } else {
+                    hideEl(userPanel);
+                    showEl(loginScreen);
+                }
+                // احترم جلسة المدير المحلية إن كانت مفعلة
+                if (isAdmin) {
+                    showEl(adminPanel);
+                    showAdminSection('stats');
+                    updateAdminStats();
+                } else {
+                    hideEl(adminPanel);
+                }
             }
         });
 
