@@ -830,6 +830,7 @@
         let isAdmin = false;
 
         // Observe Firebase Auth state for user/admin
+        let pendingAdminReveal = false;
         auth.onAuthStateChanged((user) => {
             const userPanel = document.getElementById('mainWebsite');
             const adminPanel = document.getElementById('adminPanel');
@@ -849,8 +850,8 @@
                         const isManager = idTokenResult.claims && idTokenResult.claims.role === 'manager';
                         if (isManager) {
                             showEl(adminPanel);
-                            showAdminSection('stats');
-                            updateAdminStats();
+                            // أجّل استدعاءات تهيئة لوحة المدير حتى اكتمال DOM
+                            pendingAdminReveal = true;
                         } else {
                             hideEl(adminPanel);
                         }
@@ -872,8 +873,7 @@
                 // احترم جلسة المدير المحلية إن كانت مفعلة
                 if (isAdmin) {
                     showEl(adminPanel);
-                    showAdminSection('stats');
-                    updateAdminStats();
+                    pendingAdminReveal = true;
                 } else {
                     hideEl(adminPanel);
                 }
@@ -2062,6 +2062,12 @@
                 attachRealtimeListeners();
             });
             
+            // بعد جاهزية DOM، نفّذ إجراءات الكشف المؤجلة للوحة المدير
+            if (typeof pendingAdminReveal !== 'undefined' && pendingAdminReveal) {
+                try { showAdminSection('stats'); updateAdminStats(); } catch (e) { console.warn(e); }
+                pendingAdminReveal = false;
+            }
+
             // Check if user is already logged in
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
