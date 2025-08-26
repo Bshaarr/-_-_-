@@ -2157,6 +2157,40 @@
                 }
             });
         });
+        <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+  // هذا الكُنفيج من مشروع Firebase لديك (ليس سريًا على الويب)
+  const firebaseConfig = {
+    apiKey: "…", authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID", storageBucket: "…",
+    messagingSenderId: "…", appId: "…"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+
+  // مثال: إضافة دورة جديدة من فورم "إضافة دورة"
+  async function addCourse({title, desc, trainer, lessons, hours, price}) {
+    await db.collection('courses').add({
+      title, desc, trainer,
+      lessons: Number(lessons), hours: Number(hours), price: Number(price),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  // مثال: إظهار الدورات لحظيًا لكل المستخدمين
+  db.collection('courses').orderBy('createdAt','desc')
+    .onSnapshot(snap => {
+      const list = document.getElementById('coursesList');
+      list.innerHTML = '';
+      snap.forEach(doc => {
+        const c = doc.data();
+        list.innerHTML += `<li>${c.title} — ${c.trainer}</li>`;
+      });
+    });
+</script>
     </script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9755c7b845dacd72',t:'MTc1NjIzNzAwOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
