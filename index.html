@@ -969,7 +969,8 @@
             announcements: [],
             registrations: [],
             certificateRequests: [],
-            approvedCertificates: []
+            approvedCertificates: [],
+            users: []
         };
 
         // Firebase Database Functions
@@ -1077,6 +1078,60 @@
                 console.error('Error loading platform data:', error);
                 showNotification('خطأ في تحميل البيانات', 'error');
             }
+        }
+
+        // Real-time listeners
+        let unsubscribeListeners = [];
+        function detachRealtimeListeners() {
+            try {
+                unsubscribeListeners.forEach(unsub => unsub && unsub());
+            } catch (e) {
+                console.warn('Error detaching listeners', e);
+            }
+            unsubscribeListeners = [];
+        }
+
+        function attachRealtimeListeners() {
+            detachRealtimeListeners();
+
+            const unsubCourses = db.collection('courses').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+                platformData.courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                loadCourses();
+                if (isAdmin) { loadAdminCourses(); updateAdminStats(); }
+            }, console.error);
+            unsubscribeListeners.push(unsubCourses);
+
+            const unsubAnnouncements = db.collection('announcements').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+                platformData.announcements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (isAdmin) { loadAdminAnnouncements(); }
+            }, console.error);
+            unsubscribeListeners.push(unsubAnnouncements);
+
+            const unsubRegistrations = db.collection('registrations').orderBy('registrationDate', 'desc').onSnapshot(snapshot => {
+                platformData.registrations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (isAdmin) { loadRegistrationsData(); updateAdminStats(); updateDetailedStats(); }
+                loadUserCertificates();
+            }, console.error);
+            unsubscribeListeners.push(unsubRegistrations);
+
+            const unsubCertificateRequests = db.collection('certificateRequests').orderBy('requestDate', 'desc').onSnapshot(snapshot => {
+                platformData.certificateRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (isAdmin) { loadAdminCertificates(); updateAdminStats(); updateDetailedStats(); }
+            }, console.error);
+            unsubscribeListeners.push(unsubCertificateRequests);
+
+            const unsubApprovedCertificates = db.collection('approvedCertificates').orderBy('issueDate', 'desc').onSnapshot(snapshot => {
+                platformData.approvedCertificates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (isAdmin) { loadAdminCertificates(); updateAdminStats(); updateDetailedStats(); }
+                loadUserCertificates();
+            }, console.error);
+            unsubscribeListeners.push(unsubApprovedCertificates);
+
+            const unsubUsers = db.collection('users').orderBy('lastActive', 'desc').onSnapshot(snapshot => {
+                platformData.users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                if (isAdmin) { loadAdminUsers(); loadAllUserData(); updateAdminStats(); updateDetailedStats(); }
+            }, console.error);
+            unsubscribeListeners.push(unsubUsers);
         }
 
         // Save user to Firebase
@@ -1447,7 +1502,7 @@
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <h4 class="text-lg font-semibold">${announcement.title}</h4>
-                            <p class="text-white/70 text-sm">${new Date(announcement.date).toLocaleDateString('ar')}</p>
+                            <p class="text-white/70 text-sm">${(announcement.createdAt && announcement.createdAt.toDate ? announcement.createdAt.toDate() : (announcement.createdAt ? new Date(announcement.createdAt) : new Date())).toLocaleDateString('ar')}</p>
                         </div>
                         <div class="flex space-x-2 space-x-reverse">
                             <button onclick="editAnnouncement('${announcement.id}')" class="btn-warning text-white px-3 py-1 rounded text-sm">
@@ -1596,25 +1651,12 @@
             }
         }
 
-        // Update admin statistics
+        // Update admin statistics (live from platformData)
         async function updateAdminStats() {
-            try {
-                // Get users count
-                const usersSnapshot = await db.collection('users').get();
-                document.getElementById('totalUsersCount').textContent = usersSnapshot.size;
-                
-                // Update other stats from loaded data
-                document.getElementById('totalRegistrationsCount').textContent = platformData.registrations.length;
-                document.getElementById('pendingCertificatesCount').textContent = platformData.certificateRequests.length;
-                document.getElementById('totalCertificatesCount').textContent = platformData.approvedCertificates.length;
-            } catch (error) {
-                console.error('Error updating stats:', error);
-                // Fallback to local data
-                document.getElementById('totalUsersCount').textContent = '0';
-                document.getElementById('totalRegistrationsCount').textContent = platformData.registrations.length;
-                document.getElementById('pendingCertificatesCount').textContent = platformData.certificateRequests.length;
-                document.getElementById('totalCertificatesCount').textContent = platformData.approvedCertificates.length;
-            }
+            document.getElementById('totalUsersCount').textContent = platformData.users?.length || 0;
+            document.getElementById('totalRegistrationsCount').textContent = platformData.registrations.length;
+            document.getElementById('pendingCertificatesCount').textContent = platformData.certificateRequests.length;
+            document.getElementById('totalCertificatesCount').textContent = platformData.approvedCertificates.length;
         }
 
         // Load admin users
@@ -1623,40 +1665,29 @@
             
             if (!usersList) return;
             
-            try {
-                const usersSnapshot = await db.collection('users').orderBy('lastActive', 'desc').get();
-                usersList.innerHTML = '';
-                
-                if (usersSnapshot.empty) {
-                    usersList.innerHTML = '<p class="text-white/70 text-center py-4">لا يوجد مستخدمين مسجلين</p>';
-                    return;
-                }
-                
-                usersSnapshot.docs.forEach(doc => {
-                    const user = doc.data();
-                    const userDiv = document.createElement('div');
-                    userDiv.className = 'bg-white/10 rounded-lg p-4 flex items-center justify-between';
-                    
-                    const lastActive = user.lastActive ? user.lastActive.toDate() : new Date(user.loginDate);
-                    
-                    userDiv.innerHTML = `
-                        <div>
-                            <h4 class="text-white font-semibold">${user.name}</h4>
-                            <p class="text-white/70 text-sm">${user.email}</p>
-                            <p class="text-white/50 text-xs">آخر نشاط: ${lastActive.toLocaleDateString('ar')}</p>
-                        </div>
-                        <div class="flex space-x-2 space-x-reverse">
-                            <button onclick="deleteUser('${doc.id}')" class="btn-danger text-white px-3 py-1 rounded text-sm">
-                                <i class="fas fa-trash mr-1"></i>حذف
-                            </button>
-                        </div>
-                    `;
-                    usersList.appendChild(userDiv);
-                });
-            } catch (error) {
-                console.error('Error loading users:', error);
-                usersList.innerHTML = '<p class="text-white/70 text-center py-4">خطأ في تحميل المستخدمين</p>';
+            usersList.innerHTML = '';
+            if (!platformData.users || platformData.users.length === 0) {
+                usersList.innerHTML = '<p class="text-white/70 text-center py-4">لا يوجد مستخدمين مسجلين</p>';
+                return;
             }
+            platformData.users.forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'bg-white/10 rounded-lg p-4 flex items-center justify-between';
+                const lastActive = user.lastActive ? (user.lastActive.toDate ? user.lastActive.toDate() : new Date(user.lastActive)) : new Date(user.loginDate);
+                userDiv.innerHTML = `
+                    <div>
+                        <h4 class="text-white font-semibold">${user.name}</h4>
+                        <p class="text-white/70 text-sm">${user.email}</p>
+                        <p class="text-white/50 text-xs">آخر نشاط: ${lastActive.toLocaleDateString('ar')}</p>
+                    </div>
+                    <div class="flex space-x-2 space-x-reverse">
+                        <button onclick="deleteUser('${user.id}')" class="btn-danger text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-trash mr-1"></i>حذف
+                        </button>
+                    </div>
+                `;
+                usersList.appendChild(userDiv);
+            });
         }
 
         // Load admin data management
@@ -1706,65 +1737,52 @@
             });
         }
 
-        // Load all user data
+        // Load all user data (from platformData)
         async function loadAllUserData() {
             const allUserDataList = document.getElementById('allUserDataList');
             if (!allUserDataList) return;
 
-            try {
-                const usersSnapshot = await db.collection('users').orderBy('lastActive', 'desc').get();
-                allUserDataList.innerHTML = '';
-                
-                if (usersSnapshot.empty) {
-                    allUserDataList.innerHTML = '<p class="text-white/70 text-center py-4">لا توجد بيانات مستخدمين</p>';
-                    return;
-                }
-                
-                usersSnapshot.docs.forEach(doc => {
-                    const user = doc.data();
-                    const div = document.createElement('div');
-                    div.className = 'bg-white/10 rounded-lg p-4';
-                    
-                    const lastActive = user.lastActive ? user.lastActive.toDate() : new Date(user.loginDate);
-                    
-                    // Get user's registrations
-                    const userRegistrations = platformData.registrations.filter(r => r.email === user.email);
-                    const userCertificates = platformData.approvedCertificates.filter(c => c.email === user.email);
-                    const userCertificateRequests = platformData.certificateRequests.filter(r => r.email === user.email);
-
-                    div.innerHTML = `
-                        <div class="flex items-center justify-between mb-3">
-                            <div>
-                                <h4 class="text-white font-semibold">${user.name}</h4>
-                                <p class="text-white/70 text-sm">${user.email}</p>
-                                <p class="text-white/50 text-xs">الهاتف: ${user.phone || 'غير محدد'}</p>
-                                <p class="text-white/50 text-xs">آخر نشاط: ${lastActive.toLocaleDateString('ar')}</p>
-                            </div>
-                            <button onclick="deleteUserCompletely('${doc.id}', '${user.email}')" class="btn-danger text-white px-3 py-1 rounded text-sm">
-                                <i class="fas fa-user-times mr-1"></i>حذف كامل
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-3 gap-2 text-xs text-white/60">
-                            <div class="bg-white/5 rounded p-2 text-center">
-                                <div class="font-semibold">${userRegistrations.length}</div>
-                                <div>تسجيلات</div>
-                            </div>
-                            <div class="bg-white/5 rounded p-2 text-center">
-                                <div class="font-semibold">${userCertificates.length}</div>
-                                <div>شهادات</div>
-                            </div>
-                            <div class="bg-white/5 rounded p-2 text-center">
-                                <div class="font-semibold">${userCertificateRequests.length}</div>
-                                <div>طلبات معلقة</div>
-                            </div>
-                        </div>
-                    `;
-                    allUserDataList.appendChild(div);
-                });
-            } catch (error) {
-                console.error('Error loading all user data:', error);
-                allUserDataList.innerHTML = '<p class="text-white/70 text-center py-4">خطأ في تحميل البيانات</p>';
+            allUserDataList.innerHTML = '';
+            if (!platformData.users || platformData.users.length === 0) {
+                allUserDataList.innerHTML = '<p class="text-white/70 text-center py-4">لا توجد بيانات مستخدمين</p>';
+                return;
             }
+            platformData.users.forEach(user => {
+                const div = document.createElement('div');
+                div.className = 'bg-white/10 rounded-lg p-4';
+                const lastActive = user.lastActive ? (user.lastActive.toDate ? user.lastActive.toDate() : new Date(user.lastActive)) : new Date(user.loginDate);
+                const userRegistrations = platformData.registrations.filter(r => r.email === user.email);
+                const userCertificates = platformData.approvedCertificates.filter(c => c.email === user.email);
+                const userCertificateRequests = platformData.certificateRequests.filter(r => r.email === user.email);
+                div.innerHTML = `
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h4 class="text-white font-semibold">${user.name}</h4>
+                            <p class="text-white/70 text-sm">${user.email}</p>
+                            <p class="text-white/50 text-xs">الهاتف: ${user.phone || 'غير محدد'}</p>
+                            <p class="text-white/50 text-xs">آخر نشاط: ${lastActive.toLocaleDateString('ar')}</p>
+                        </div>
+                        <button onclick="deleteUserCompletely('${user.id}', '${user.email}')" class="btn-danger text-white px-3 py-1 rounded text-sm">
+                            <i class="fas fa-user-times mr-1"></i>حذف كامل
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-xs text-white/60">
+                        <div class="bg-white/5 rounded p-2 text-center">
+                            <div class="font-semibold">${userRegistrations.length}</div>
+                            <div>تسجيلات</div>
+                        </div>
+                        <div class="bg-white/5 rounded p-2 text-center">
+                            <div class="font-semibold">${userCertificates.length}</div>
+                            <div>شهادات</div>
+                        </div>
+                        <div class="bg-white/5 rounded p-2 text-center">
+                            <div class="font-semibold">${userCertificateRequests.length}</div>
+                            <div>طلبات معلقة</div>
+                        </div>
+                    </div>
+                `;
+                allUserDataList.appendChild(div);
+            });
         }
 
         // Update detailed statistics
@@ -1979,6 +1997,9 @@
                         color: 'purple'
                     }
                 ];
+            }).finally(() => {
+                // Attach real-time listeners after initial load attempt
+                attachRealtimeListeners();
             });
             
             // Check if user is already logged in
