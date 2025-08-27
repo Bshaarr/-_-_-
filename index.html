@@ -2266,5 +2266,84 @@
     });
 </script>
     </script>
+
+    <!-- Compatibility helpers: add only missing wiring without conflicting with existing logic -->
+    <script>
+    (function(){
+        try {
+            if (typeof firebase === 'undefined') { return; }
+            // Do NOT re-initialize Firebase; reuse existing compat instance
+            const auth = (typeof window.auth !== 'undefined') ? window.auth : firebase.auth();
+            const db = (typeof window.db !== 'undefined') ? window.db : firebase.firestore();
+
+            // Elements (fallback to existing IDs in this project)
+            const loginScreen = document.getElementById('loginScreen');
+            const mainWebsite = document.getElementById('mainWebsite');
+            const studentLoginForm = document.getElementById('studentLoginForm') || null; // not present in current UI
+            const adminLoginPopup = document.getElementById('adminLoginPopup') || document.getElementById('adminLoginModal');
+            const closeAdminBtn = document.getElementById('closeAdmin') || null; // optional
+            const adminLoginForm = document.getElementById('adminLoginForm');
+            const showAdminLoginBtn = document.getElementById('showAdminLoginBtn') || null; // optional
+
+            const showEl = (el) => { if (!el) return; el.classList.remove('hidden'); };
+            const hideEl = (el) => { if (!el) return; el.classList.add('hidden'); };
+
+            function loginStudentCompat(e){
+                e.preventDefault();
+                if (!studentLoginForm) return;
+                const email = studentLoginForm['email']?.value;
+                const password = studentLoginForm['password']?.value;
+                if (!email || !password) return;
+                auth.signInWithEmailAndPassword(email, password)
+                    .then(() => { hideEl(loginScreen); showEl(mainWebsite); })
+                    .catch((err) => console.error('Login error:', err));
+            }
+
+            function showAdminLoginCompat(){ showEl(adminLoginPopup); }
+
+            function adminLoginCompat(e){
+                e.preventDefault();
+                // Expect fields named adminEmail/adminPassword only if such form exists in another template
+                const email = adminLoginForm && adminLoginForm['adminEmail'] ? adminLoginForm['adminEmail'].value : null;
+                const password = adminLoginForm && adminLoginForm['adminPassword'] ? adminLoginForm['adminPassword'].value : null;
+                if (!email || !password) return; // current project uses custom admin flow; avoid conflict
+                auth.signInWithEmailAndPassword(email, password)
+                    .then(() => { hideEl(loginScreen); showEl(mainWebsite); hideEl(adminLoginPopup); })
+                    .catch((err) => console.error('Admin login error:', err));
+            }
+
+            function logoutCompat(){
+                auth.signOut().finally(() => { hideEl(mainWebsite); showEl(loginScreen); });
+            }
+
+            // Bind only if elements actually exist and not already bound
+            if (studentLoginForm && !studentLoginForm.dataset.compatBound){
+                studentLoginForm.addEventListener('submit', loginStudentCompat);
+                studentLoginForm.dataset.compatBound = 'true';
+            }
+            if (adminLoginForm && !adminLoginForm.dataset.compatBound){
+                // Avoid double-binding since project already has its own admin submit handler
+                // Only bind if special fields exist (adminEmail/adminPassword) to indicate alternate template
+                if (adminLoginForm['adminEmail'] && adminLoginForm['adminPassword']){
+                    adminLoginForm.addEventListener('submit', adminLoginCompat);
+                }
+                adminLoginForm.dataset.compatBound = 'true';
+            }
+            if (showAdminLoginBtn && !showAdminLoginBtn.dataset.compatBound){
+                showAdminLoginBtn.addEventListener('click', showAdminLoginCompat);
+                showAdminLoginBtn.dataset.compatBound = 'true';
+            }
+            if (closeAdminBtn && !closeAdminBtn.dataset.compatBound){
+                closeAdminBtn.addEventListener('click', () => hideEl(adminLoginPopup));
+                closeAdminBtn.dataset.compatBound = 'true';
+            }
+
+            // Expose optional helpers
+            window.loginStudentCompat = loginStudentCompat;
+            window.adminLoginCompat = adminLoginCompat;
+            window.logoutCompat = logoutCompat;
+        } catch (e) { console.warn('Compat script error:', e); }
+    })();
+    </script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9755c7b845dacd72',t:'MTc1NjIzNzAwOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
