@@ -832,25 +832,16 @@
         // Observe Firebase Auth state for user/admin
         let pendingAdminReveal = false;
         auth.onAuthStateChanged((user) => {
-            const userPanel = document.getElementById('mainWebsite');
             const adminPanel = document.getElementById('adminPanel');
-            const loginScreen = document.getElementById('loginScreen');
-
             const showEl = (el) => { if (!el) return; el.classList.remove('hidden'); };
             const hideEl = (el) => { if (!el) return; el.classList.add('hidden'); };
 
             if (user) {
-                // جميع المستخدمين المسجلين في Firebase يرون الواجهة العادية
-                showEl(userPanel);
-                hideEl(loginScreen);
-
-                // تحقق من role للمدير
                 user.getIdTokenResult()
                     .then((idTokenResult) => {
                         const isManager = idTokenResult.claims && idTokenResult.claims.role === 'manager';
                         if (isManager) {
                             showEl(adminPanel);
-                            // أجّل استدعاءات تهيئة لوحة المدير حتى اكتمال DOM
                             pendingAdminReveal = true;
                         } else {
                             hideEl(adminPanel);
@@ -861,21 +852,10 @@
                         hideEl(adminPanel);
                     });
             } else {
-                // لا يوجد مستخدم Firebase
-                const hasLocalUser = !!localStorage.getItem('currentUser');
                 if (isAdmin) {
-                    // جلسة مدير محلية: أظهر لوحة المدير وأخفِ شاشة الدخول
-                    hideEl(loginScreen);
                     showEl(adminPanel);
                     pendingAdminReveal = true;
-                    hideEl(userPanel);
-                } else if (hasLocalUser) {
-                    showEl(userPanel);
-                    hideEl(loginScreen);
-                    hideEl(adminPanel);
                 } else {
-                    hideEl(userPanel);
-                    showEl(loginScreen);
                     hideEl(adminPanel);
                 }
             }
