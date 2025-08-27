@@ -863,18 +863,19 @@
             } else {
                 // لا يوجد مستخدم Firebase
                 const hasLocalUser = !!localStorage.getItem('currentUser');
-                if (hasLocalUser) {
+                if (isAdmin) {
+                    // جلسة مدير محلية: أظهر لوحة المدير وأخفِ شاشة الدخول
+                    hideEl(loginScreen);
+                    showEl(adminPanel);
+                    pendingAdminReveal = true;
+                    hideEl(userPanel);
+                } else if (hasLocalUser) {
                     showEl(userPanel);
                     hideEl(loginScreen);
+                    hideEl(adminPanel);
                 } else {
                     hideEl(userPanel);
                     showEl(loginScreen);
-                }
-                // احترم جلسة المدير المحلية إن كانت مفعلة
-                if (isAdmin) {
-                    showEl(adminPanel);
-                    pendingAdminReveal = true;
-                } else {
                     hideEl(adminPanel);
                 }
             }
