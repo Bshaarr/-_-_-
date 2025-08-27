@@ -817,6 +817,10 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
+        // Expose for other scripts to reuse same config/instances without re-initialization
+        window.firebaseConfig = firebaseConfig;
+        window.db = db;
+        window.auth = auth;
         const allowedAdminEmails = ['ADMIN_EMAIL@domain.com']; // TODO: حدّث هذا البريد لمديرك
         const ADMIN_USERNAME = 'Bashar';
         const ADMIN_PASSWORD_OBF = 'ccttiibbss7516'; // كلمة المرور بعد إزاحة بسيطة (+1 لكل محرف)
@@ -2261,7 +2265,7 @@
     (function(){
         try {
             if (typeof firebase === 'undefined') { return; }
-            // Do NOT re-initialize Firebase; reuse existing compat instance
+            // Reuse same Firebase config and instances defined earlier
             const auth = (typeof window.auth !== 'undefined') ? window.auth : firebase.auth();
             const db = (typeof window.db !== 'undefined') ? window.db : firebase.firestore();
 
