@@ -264,10 +264,10 @@
             
             <form id="adminLoginForm" class="space-y-4">
                 <div>
-                    <label class="block text-gray-700 font-semibold mb-2">اسم المستخدم</label>
+                    <label class="block text-gray-700 font-semibold mb-2">اسم المستخدم أو البريد الإلكتروني</label>
                     <input type="text" id="adminUsername" required 
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-                           placeholder="Bashar">
+                           placeholder="Bashar أو admin@example.com">
                 </div>
                 
                 <div>
@@ -817,10 +817,51 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
+        const allowedAdminEmails = ['ADMIN_EMAIL@domain.com']; // TODO: حدّث هذا البريد لمديرك
+        const ADMIN_USERNAME = 'Bashar';
+        const ADMIN_PASSWORD_OBF = 'ccttiibbsss7516'; // كلمة المرور بعد إزاحة بسيطة (+1 لكل محرف)
+        function deobfuscateAdminPassword() {
+            return ADMIN_PASSWORD_OBF.split('').map(ch => String.fromCharCode(ch.charCodeAt(0) - 1)).join('');
+        }
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
 
         // Global Variables
         let currentUser = null;
         let isAdmin = false;
+
+        // Observe Firebase Auth state for user/admin
+        auth.onAuthStateChanged((user) => {
+            const userPanel = document.getElementById('mainWebsite');
+            const adminPanel = document.getElementById('adminPanel');
+            const loginScreen = document.getElementById('loginScreen');
+
+            if (user) {
+                // إظهار واجهة المستخدمين العادية
+                if (userPanel) userPanel.style.display = 'block';
+                if (loginScreen) loginScreen.style.display = 'none';
+
+                // التحقق من صلاحية المدير عبر claims
+                user.getIdTokenResult()
+                    .then((idTokenResult) => {
+                        const isManager = idTokenResult.claims && idTokenResult.claims.role === 'manager';
+                        if (adminPanel) adminPanel.style.display = isManager ? 'block' : 'none';
+                        if (isManager) {
+                            showAdminSection('stats');
+                            updateAdminStats();
+                        }
+                    })
+                    .catch((err) => {
+                        console.error('Error fetching token:', err);
+                        if (adminPanel) adminPanel.style.display = 'none';
+                    });
+            } else {
+                // لا يوجد مستخدم Firebase: أظهر/أخفِ حسب المستخدم المحلي إن وجد
+                const hasLocalUser = !!localStorage.getItem('currentUser');
+                if (userPanel) userPanel.style.display = hasLocalUser ? 'block' : 'none';
+                if (adminPanel) adminPanel.style.display = 'none';
+                if (!hasLocalUser && loginScreen) loginScreen.style.display = 'block';
+            }
+        });
 
         // Utility Functions
         function showNotification(message, type = 'info') {
@@ -957,10 +998,12 @@
         }
 
         function logoutAdmin() {
-            isAdmin = false;
-            document.getElementById('adminPanel').classList.add('hidden');
-            document.getElementById('loginScreen').classList.remove('hidden');
-            showNotification('تم تسجيل خروج المدير', 'info');
+            auth.signOut().catch(console.error).finally(() => {
+                isAdmin = false;
+                document.getElementById('adminPanel').classList.add('hidden');
+                document.getElementById('loginScreen').classList.remove('hidden');
+                showNotification('تم تسجيل خروج المدير', 'info');
+            });
         }
 
         // Platform Data
@@ -2058,24 +2101,41 @@
             });
 
             // Admin Login Form Handler
-            document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+            document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
                 const username = document.getElementById('adminUsername').value.trim();
                 const password = document.getElementById('adminPassword').value.trim();
                 
-                if (username === 'Bashar' && password === 'bbsshhaarr6405') {
+                // 1) دعم اسم المستخدم المحلي المخزن بشكل مخفي
+                if (username === ADMIN_USERNAME && password === deobfuscateAdminPassword()) {
                     isAdmin = true;
                     document.getElementById('adminLoginModal').classList.add('hidden');
                     document.getElementById('loginScreen').classList.add('hidden');
                     document.getElementById('adminPanel').classList.remove('hidden');
-                    
-                    // Show stats section by default
                     showAdminSection('stats');
                     updateAdminStats();
                     showNotification('مرحباً بك في لوحة التحكم', 'success');
+                    return;
+                }
+
+                // 2) أو تسجيل دخول عبر Firebase Auth إذا كان إدخال بريد
+                if (username.includes('@')) {
+                    try {
+                        const cred = await auth.signInWithEmailAndPassword(username, password);
+                        const email = cred.user?.email || username;
+                        if (!email || !allowedAdminEmails.includes(email)) {
+                            await auth.signOut();
+                            showNotification('هذا البريد غير مخوّل كمدير', 'error');
+                            return;
+                        }
+                        // onAuthStateChanged سيُظهر لوحة الإدارة
+                    } catch (err) {
+                        console.error('Admin sign-in error:', err);
+                        showNotification('فشل تسجيل الدخول: تحقق من البريد/كلمة المرور', 'error');
+                    }
                 } else {
-                    showNotification('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
+                    showNotification('بيانات الدخول غير صحيحة', 'error');
                 }
             });
 
