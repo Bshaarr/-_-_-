@@ -216,7 +216,7 @@
                 <p class="text-gray-600">منصة تدريب مهارات الذكاء الاصطناعي</p>
             </div>
             
-            <form id="loginForm" class="space-y-6" onsubmit="return manualLoginSubmit(event)">
+            <form id="loginForm" class="space-y-6">
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">الاسم الكامل</label>
                     <input type="text" id="studentName" required 
@@ -246,7 +246,7 @@
 
             <!-- Admin Login Button -->
             <div class="mt-6 pt-6 border-t border-gray-200">
-                <button type="button" id="showAdminLoginBtn" onclick="showAdminLogin()"
+                <button type="button" onclick="showAdminLogin()"
                         class="w-full bg-gradient-to-r from-red-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all">
                     <i class="fas fa-user-shield mr-2"></i>دخول المدير
                 </button>
@@ -264,17 +264,17 @@
             
             <form id="adminLoginForm" class="space-y-4">
                 <div>
-                    <label class="block text-gray-700 font-semibold mb-2">اسم المستخدم أو البريد الإلكتروني</label>
+                    <label class="block text-gray-700 font-semibold mb-2">اسم المستخدم</label>
                     <input type="text" id="adminUsername" required 
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-                           placeholder="Bashar أو admin@example.com">
+                           placeholder="Bashar">
                 </div>
                 
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">كلمة المرور</label>
                     <input type="password" id="adminPassword" required 
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-                           placeholder="********">
+                           placeholder="bbsshhaarr6405">
                 </div>
                 
                 <div class="flex space-x-3 space-x-reverse">
@@ -817,53 +817,10 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
-        // Expose for other scripts to reuse same config/instances without re-initialization
-        window.firebaseConfig = firebaseConfig;
-        window.db = db;
-        window.auth = auth;
-        const allowedAdminEmails = ['ADMIN_EMAIL@domain.com']; // TODO: حدّث هذا البريد لمديرك
-        const ADMIN_USERNAME = 'Bashar';
-        const ADMIN_PASSWORD_OBF = 'ccttiibbss7516'; // كلمة المرور بعد إزاحة بسيطة (+1 لكل محرف)
-        function deobfuscateAdminPassword() {
-            return ADMIN_PASSWORD_OBF.split('').map(ch => String.fromCharCode(ch.charCodeAt(0) - 1)).join('');
-        }
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
 
         // Global Variables
         let currentUser = null;
         let isAdmin = false;
-
-        // Observe Firebase Auth state for user/admin
-        let pendingAdminReveal = false;
-        auth.onAuthStateChanged((user) => {
-            const adminPanel = document.getElementById('adminPanel');
-            const showEl = (el) => { if (!el) return; el.classList.remove('hidden'); };
-            const hideEl = (el) => { if (!el) return; el.classList.add('hidden'); };
-
-            if (user) {
-                user.getIdTokenResult()
-                    .then((idTokenResult) => {
-                        const isManager = idTokenResult.claims && idTokenResult.claims.role === 'manager';
-                        if (isManager) {
-                            showEl(adminPanel);
-                            pendingAdminReveal = true;
-                        } else {
-                            hideEl(adminPanel);
-                        }
-                    })
-                    .catch((err) => {
-                        console.error('Error fetching token:', err);
-                        hideEl(adminPanel);
-                    });
-            } else {
-                if (isAdmin) {
-                    showEl(adminPanel);
-                    pendingAdminReveal = true;
-                } else {
-                    hideEl(adminPanel);
-                }
-            }
-        });
 
         // Utility Functions
         function showNotification(message, type = 'info') {
@@ -989,32 +946,6 @@
             showNotification('تم تسجيل الخروج بنجاح', 'info');
         }
 
-        // Bind logout functions for inline onclick
-        window.logout = logout;
-
-        // Reliable manual submit handler to prevent any default navigation
-        function manualLoginSubmit(e){
-            try {
-                if (e && typeof e.preventDefault === 'function') e.preventDefault();
-            } catch(_){}
-            const name = document.getElementById('studentName')?.value?.trim();
-            const phone = document.getElementById('studentPhone')?.value?.trim();
-            const email = document.getElementById('studentEmail')?.value?.trim();
-            if (!name || !phone || !email) { showNotification('يرجى ملء جميع الحقول', 'error'); return false; }
-            currentUser = { name, phone, email, loginDate: new Date().toISOString() };
-            try { localStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch(_){ }
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('mainWebsite').classList.remove('hidden');
-            document.getElementById('welcomeName').textContent = name;
-            document.getElementById('welcomeName2').textContent = name;
-            showSection('dashboard');
-            loadCourses();
-            loadUserCertificates();
-            saveUser(currentUser).catch(()=>{});
-            return false;
-        }
-        window.manualLoginSubmit = manualLoginSubmit;
-
         // Admin Functions
         function showAdminLogin() {
             document.getElementById('adminLoginModal').classList.remove('hidden');
@@ -1025,21 +956,12 @@
             document.getElementById('adminLoginForm').reset();
         }
 
-        // Ensure inline handlers work (bind to window)
-        window.showAdminLogin = showAdminLogin;
-        window.hideAdminLogin = hideAdminLogin;
-
         function logoutAdmin() {
-            auth.signOut().catch(console.error).finally(() => {
-                isAdmin = false;
-                document.getElementById('adminPanel').classList.add('hidden');
-                document.getElementById('loginScreen').classList.remove('hidden');
-                showNotification('تم تسجيل خروج المدير', 'info');
-            });
+            isAdmin = false;
+            document.getElementById('adminPanel').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            showNotification('تم تسجيل خروج المدير', 'info');
         }
-
-        // Bind for inline onclick
-        window.logoutAdmin = logoutAdmin;
 
         // Platform Data
         let platformData = {
@@ -1047,8 +969,7 @@
             announcements: [],
             registrations: [],
             certificateRequests: [],
-            approvedCertificates: [],
-            users: []
+            approvedCertificates: []
         };
 
         // Firebase Database Functions
@@ -1156,60 +1077,6 @@
                 console.error('Error loading platform data:', error);
                 showNotification('خطأ في تحميل البيانات', 'error');
             }
-        }
-
-        // Real-time listeners
-        let unsubscribeListeners = [];
-        function detachRealtimeListeners() {
-            try {
-                unsubscribeListeners.forEach(unsub => unsub && unsub());
-            } catch (e) {
-                console.warn('Error detaching listeners', e);
-            }
-            unsubscribeListeners = [];
-        }
-
-        function attachRealtimeListeners() {
-            detachRealtimeListeners();
-
-            const unsubCourses = db.collection('courses').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
-                platformData.courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                loadCourses();
-                if (isAdmin) { loadAdminCourses(); updateAdminStats(); }
-            }, console.error);
-            unsubscribeListeners.push(unsubCourses);
-
-            const unsubAnnouncements = db.collection('announcements').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
-                platformData.announcements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (isAdmin) { loadAdminAnnouncements(); }
-            }, console.error);
-            unsubscribeListeners.push(unsubAnnouncements);
-
-            const unsubRegistrations = db.collection('registrations').orderBy('registrationDate', 'desc').onSnapshot(snapshot => {
-                platformData.registrations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (isAdmin) { loadRegistrationsData(); updateAdminStats(); updateDetailedStats(); }
-                loadUserCertificates();
-            }, console.error);
-            unsubscribeListeners.push(unsubRegistrations);
-
-            const unsubCertificateRequests = db.collection('certificateRequests').orderBy('requestDate', 'desc').onSnapshot(snapshot => {
-                platformData.certificateRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (isAdmin) { loadAdminCertificates(); updateAdminStats(); updateDetailedStats(); }
-            }, console.error);
-            unsubscribeListeners.push(unsubCertificateRequests);
-
-            const unsubApprovedCertificates = db.collection('approvedCertificates').orderBy('issueDate', 'desc').onSnapshot(snapshot => {
-                platformData.approvedCertificates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (isAdmin) { loadAdminCertificates(); updateAdminStats(); updateDetailedStats(); }
-                loadUserCertificates();
-            }, console.error);
-            unsubscribeListeners.push(unsubApprovedCertificates);
-
-            const unsubUsers = db.collection('users').orderBy('lastActive', 'desc').onSnapshot(snapshot => {
-                platformData.users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (isAdmin) { loadAdminUsers(); loadAllUserData(); updateAdminStats(); updateDetailedStats(); }
-            }, console.error);
-            unsubscribeListeners.push(unsubUsers);
         }
 
         // Save user to Firebase
@@ -1580,7 +1447,7 @@
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <h4 class="text-lg font-semibold">${announcement.title}</h4>
-                            <p class="text-white/70 text-sm">${(announcement.createdAt && announcement.createdAt.toDate ? announcement.createdAt.toDate() : (announcement.createdAt ? new Date(announcement.createdAt) : new Date())).toLocaleDateString('ar')}</p>
+                            <p class="text-white/70 text-sm">${new Date(announcement.date).toLocaleDateString('ar')}</p>
                         </div>
                         <div class="flex space-x-2 space-x-reverse">
                             <button onclick="editAnnouncement('${announcement.id}')" class="btn-warning text-white px-3 py-1 rounded text-sm">
@@ -1729,12 +1596,25 @@
             }
         }
 
-        // Update admin statistics (live from platformData)
+        // Update admin statistics
         async function updateAdminStats() {
-            document.getElementById('totalUsersCount').textContent = platformData.users?.length || 0;
-            document.getElementById('totalRegistrationsCount').textContent = platformData.registrations.length;
-            document.getElementById('pendingCertificatesCount').textContent = platformData.certificateRequests.length;
-            document.getElementById('totalCertificatesCount').textContent = platformData.approvedCertificates.length;
+            try {
+                // Get users count
+                const usersSnapshot = await db.collection('users').get();
+                document.getElementById('totalUsersCount').textContent = usersSnapshot.size;
+                
+                // Update other stats from loaded data
+                document.getElementById('totalRegistrationsCount').textContent = platformData.registrations.length;
+                document.getElementById('pendingCertificatesCount').textContent = platformData.certificateRequests.length;
+                document.getElementById('totalCertificatesCount').textContent = platformData.approvedCertificates.length;
+            } catch (error) {
+                console.error('Error updating stats:', error);
+                // Fallback to local data
+                document.getElementById('totalUsersCount').textContent = '0';
+                document.getElementById('totalRegistrationsCount').textContent = platformData.registrations.length;
+                document.getElementById('pendingCertificatesCount').textContent = platformData.certificateRequests.length;
+                document.getElementById('totalCertificatesCount').textContent = platformData.approvedCertificates.length;
+            }
         }
 
         // Load admin users
@@ -1743,29 +1623,40 @@
             
             if (!usersList) return;
             
-            usersList.innerHTML = '';
-            if (!platformData.users || platformData.users.length === 0) {
-                usersList.innerHTML = '<p class="text-white/70 text-center py-4">لا يوجد مستخدمين مسجلين</p>';
-                return;
+            try {
+                const usersSnapshot = await db.collection('users').orderBy('lastActive', 'desc').get();
+                usersList.innerHTML = '';
+                
+                if (usersSnapshot.empty) {
+                    usersList.innerHTML = '<p class="text-white/70 text-center py-4">لا يوجد مستخدمين مسجلين</p>';
+                    return;
+                }
+                
+                usersSnapshot.docs.forEach(doc => {
+                    const user = doc.data();
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'bg-white/10 rounded-lg p-4 flex items-center justify-between';
+                    
+                    const lastActive = user.lastActive ? user.lastActive.toDate() : new Date(user.loginDate);
+                    
+                    userDiv.innerHTML = `
+                        <div>
+                            <h4 class="text-white font-semibold">${user.name}</h4>
+                            <p class="text-white/70 text-sm">${user.email}</p>
+                            <p class="text-white/50 text-xs">آخر نشاط: ${lastActive.toLocaleDateString('ar')}</p>
+                        </div>
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="deleteUser('${doc.id}')" class="btn-danger text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-trash mr-1"></i>حذف
+                            </button>
+                        </div>
+                    `;
+                    usersList.appendChild(userDiv);
+                });
+            } catch (error) {
+                console.error('Error loading users:', error);
+                usersList.innerHTML = '<p class="text-white/70 text-center py-4">خطأ في تحميل المستخدمين</p>';
             }
-            platformData.users.forEach(user => {
-                const userDiv = document.createElement('div');
-                userDiv.className = 'bg-white/10 rounded-lg p-4 flex items-center justify-between';
-                const lastActive = user.lastActive ? (user.lastActive.toDate ? user.lastActive.toDate() : new Date(user.lastActive)) : new Date(user.loginDate);
-                userDiv.innerHTML = `
-                    <div>
-                        <h4 class="text-white font-semibold">${user.name}</h4>
-                        <p class="text-white/70 text-sm">${user.email}</p>
-                        <p class="text-white/50 text-xs">آخر نشاط: ${lastActive.toLocaleDateString('ar')}</p>
-                    </div>
-                    <div class="flex space-x-2 space-x-reverse">
-                        <button onclick="deleteUser('${user.id}')" class="btn-danger text-white px-3 py-1 rounded text-sm">
-                            <i class="fas fa-trash mr-1"></i>حذف
-                        </button>
-                    </div>
-                `;
-                usersList.appendChild(userDiv);
-            });
         }
 
         // Load admin data management
@@ -1815,52 +1706,65 @@
             });
         }
 
-        // Load all user data (from platformData)
+        // Load all user data
         async function loadAllUserData() {
             const allUserDataList = document.getElementById('allUserDataList');
             if (!allUserDataList) return;
 
-            allUserDataList.innerHTML = '';
-            if (!platformData.users || platformData.users.length === 0) {
-                allUserDataList.innerHTML = '<p class="text-white/70 text-center py-4">لا توجد بيانات مستخدمين</p>';
-                return;
+            try {
+                const usersSnapshot = await db.collection('users').orderBy('lastActive', 'desc').get();
+                allUserDataList.innerHTML = '';
+                
+                if (usersSnapshot.empty) {
+                    allUserDataList.innerHTML = '<p class="text-white/70 text-center py-4">لا توجد بيانات مستخدمين</p>';
+                    return;
+                }
+                
+                usersSnapshot.docs.forEach(doc => {
+                    const user = doc.data();
+                    const div = document.createElement('div');
+                    div.className = 'bg-white/10 rounded-lg p-4';
+                    
+                    const lastActive = user.lastActive ? user.lastActive.toDate() : new Date(user.loginDate);
+                    
+                    // Get user's registrations
+                    const userRegistrations = platformData.registrations.filter(r => r.email === user.email);
+                    const userCertificates = platformData.approvedCertificates.filter(c => c.email === user.email);
+                    const userCertificateRequests = platformData.certificateRequests.filter(r => r.email === user.email);
+
+                    div.innerHTML = `
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h4 class="text-white font-semibold">${user.name}</h4>
+                                <p class="text-white/70 text-sm">${user.email}</p>
+                                <p class="text-white/50 text-xs">الهاتف: ${user.phone || 'غير محدد'}</p>
+                                <p class="text-white/50 text-xs">آخر نشاط: ${lastActive.toLocaleDateString('ar')}</p>
+                            </div>
+                            <button onclick="deleteUserCompletely('${doc.id}', '${user.email}')" class="btn-danger text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-user-times mr-1"></i>حذف كامل
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-xs text-white/60">
+                            <div class="bg-white/5 rounded p-2 text-center">
+                                <div class="font-semibold">${userRegistrations.length}</div>
+                                <div>تسجيلات</div>
+                            </div>
+                            <div class="bg-white/5 rounded p-2 text-center">
+                                <div class="font-semibold">${userCertificates.length}</div>
+                                <div>شهادات</div>
+                            </div>
+                            <div class="bg-white/5 rounded p-2 text-center">
+                                <div class="font-semibold">${userCertificateRequests.length}</div>
+                                <div>طلبات معلقة</div>
+                            </div>
+                        </div>
+                    `;
+                    allUserDataList.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error loading all user data:', error);
+                allUserDataList.innerHTML = '<p class="text-white/70 text-center py-4">خطأ في تحميل البيانات</p>';
             }
-            platformData.users.forEach(user => {
-                const div = document.createElement('div');
-                div.className = 'bg-white/10 rounded-lg p-4';
-                const lastActive = user.lastActive ? (user.lastActive.toDate ? user.lastActive.toDate() : new Date(user.lastActive)) : new Date(user.loginDate);
-                const userRegistrations = platformData.registrations.filter(r => r.email === user.email);
-                const userCertificates = platformData.approvedCertificates.filter(c => c.email === user.email);
-                const userCertificateRequests = platformData.certificateRequests.filter(r => r.email === user.email);
-                div.innerHTML = `
-                    <div class="flex items-center justify-between mb-3">
-                        <div>
-                            <h4 class="text-white font-semibold">${user.name}</h4>
-                            <p class="text-white/70 text-sm">${user.email}</p>
-                            <p class="text-white/50 text-xs">الهاتف: ${user.phone || 'غير محدد'}</p>
-                            <p class="text-white/50 text-xs">آخر نشاط: ${lastActive.toLocaleDateString('ar')}</p>
-                        </div>
-                        <button onclick="deleteUserCompletely('${user.id}', '${user.email}')" class="btn-danger text-white px-3 py-1 rounded text-sm">
-                            <i class="fas fa-user-times mr-1"></i>حذف كامل
-                        </button>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2 text-xs text-white/60">
-                        <div class="bg-white/5 rounded p-2 text-center">
-                            <div class="font-semibold">${userRegistrations.length}</div>
-                            <div>تسجيلات</div>
-                        </div>
-                        <div class="bg-white/5 rounded p-2 text-center">
-                            <div class="font-semibold">${userCertificates.length}</div>
-                            <div>شهادات</div>
-                        </div>
-                        <div class="bg-white/5 rounded p-2 text-center">
-                            <div class="font-semibold">${userCertificateRequests.length}</div>
-                            <div>طلبات معلقة</div>
-                        </div>
-                    </div>
-                `;
-                allUserDataList.appendChild(div);
-            });
         }
 
         // Update detailed statistics
@@ -2075,17 +1979,8 @@
                         color: 'purple'
                     }
                 ];
-            }).finally(() => {
-                // Attach real-time listeners after initial load attempt
-                attachRealtimeListeners();
             });
             
-            // بعد جاهزية DOM، نفّذ إجراءات الكشف المؤجلة للوحة المدير
-            if (typeof pendingAdminReveal !== 'undefined' && pendingAdminReveal) {
-                try { showAdminSection('stats'); updateAdminStats(); } catch (e) { console.warn(e); }
-                pendingAdminReveal = false;
-            }
-
             // Check if user is already logged in
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
@@ -2142,41 +2037,24 @@
             });
 
             // Admin Login Form Handler
-            document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
+            document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 
                 const username = document.getElementById('adminUsername').value.trim();
                 const password = document.getElementById('adminPassword').value.trim();
                 
-                // 1) دعم اسم المستخدم المحلي المخزن بشكل مخفي
-                if (username === ADMIN_USERNAME && password === deobfuscateAdminPassword()) {
+                if (username === 'Bashar' && password === 'bbsshhaarr6405') {
                     isAdmin = true;
                     document.getElementById('adminLoginModal').classList.add('hidden');
                     document.getElementById('loginScreen').classList.add('hidden');
                     document.getElementById('adminPanel').classList.remove('hidden');
+                    
+                    // Show stats section by default
                     showAdminSection('stats');
                     updateAdminStats();
                     showNotification('مرحباً بك في لوحة التحكم', 'success');
-                    return;
-                }
-
-                // 2) أو تسجيل دخول عبر Firebase Auth إذا كان إدخال بريد
-                if (username.includes('@')) {
-                    try {
-                        const cred = await auth.signInWithEmailAndPassword(username, password);
-                        const email = cred.user?.email || username;
-                        if (!email || !allowedAdminEmails.includes(email)) {
-                            await auth.signOut();
-                            showNotification('هذا البريد غير مخوّل كمدير', 'error');
-                            return;
-                        }
-                        // onAuthStateChanged سيُظهر لوحة الإدارة
-                    } catch (err) {
-                        console.error('Admin sign-in error:', err);
-                        showNotification('فشل تسجيل الدخول: تحقق من البريد/كلمة المرور', 'error');
-                    }
                 } else {
-                    showNotification('بيانات الدخول غير صحيحة', 'error');
+                    showNotification('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
                 }
             });
 
@@ -2258,119 +2136,6 @@
                 }
             });
         });
-        <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script>
-  // هذا الكُنفيج من مشروع Firebase لديك (ليس سريًا على الويب)
-  const firebaseConfig = {
-    apiKey: "…", authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID", storageBucket: "…",
-    messagingSenderId: "…", appId: "…"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db   = firebase.firestore();
-
-  // مثال: إضافة دورة جديدة من فورم "إضافة دورة"
-  async function addCourse({title, desc, trainer, lessons, hours, price}) {
-    await db.collection('courses').add({
-      title, desc, trainer,
-      lessons: Number(lessons), hours: Number(hours), price: Number(price),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  }
-
-  // مثال: إظهار الدورات لحظيًا لكل المستخدمين
-  db.collection('courses').orderBy('createdAt','desc')
-    .onSnapshot(snap => {
-      const list = document.getElementById('coursesList');
-      list.innerHTML = '';
-      snap.forEach(doc => {
-        const c = doc.data();
-        list.innerHTML += `<li>${c.title} — ${c.trainer}</li>`;
-      });
-    });
-</script>
     </script>
-
-    <!-- Compatibility helpers: add only missing wiring without conflicting with existing logic -->
-    <script>
-    (function(){
-        try {
-            if (typeof firebase === 'undefined') { return; }
-            // Reuse same Firebase config and instances defined earlier
-            const auth = (typeof window.auth !== 'undefined') ? window.auth : firebase.auth();
-            const db = (typeof window.db !== 'undefined') ? window.db : firebase.firestore();
-
-            // Elements (fallback to existing IDs in this project)
-            const loginScreen = document.getElementById('loginScreen');
-            const mainWebsite = document.getElementById('mainWebsite');
-            const studentLoginForm = document.getElementById('studentLoginForm') || null; // not present in current UI
-            const adminLoginPopup = document.getElementById('adminLoginPopup') || document.getElementById('adminLoginModal');
-            const closeAdminBtn = document.getElementById('closeAdmin') || null; // optional
-            const adminLoginForm = document.getElementById('adminLoginForm');
-            const showAdminLoginBtn = document.getElementById('showAdminLoginBtn') || null; // optional
-
-            const showEl = (el) => { if (!el) return; el.classList.remove('hidden'); };
-            const hideEl = (el) => { if (!el) return; el.classList.add('hidden'); };
-
-            function loginStudentCompat(e){
-                e.preventDefault();
-                if (!studentLoginForm) return;
-                const email = studentLoginForm['email']?.value;
-                const password = studentLoginForm['password']?.value;
-                if (!email || !password) return;
-                auth.signInWithEmailAndPassword(email, password)
-                    .then(() => { hideEl(loginScreen); showEl(mainWebsite); })
-                    .catch((err) => console.error('Login error:', err));
-            }
-
-            function showAdminLoginCompat(){ showEl(adminLoginPopup); }
-
-            function adminLoginCompat(e){
-                e.preventDefault();
-                // Expect fields named adminEmail/adminPassword only if such form exists in another template
-                const email = adminLoginForm && adminLoginForm['adminEmail'] ? adminLoginForm['adminEmail'].value : null;
-                const password = adminLoginForm && adminLoginForm['adminPassword'] ? adminLoginForm['adminPassword'].value : null;
-                if (!email || !password) return; // current project uses custom admin flow; avoid conflict
-                auth.signInWithEmailAndPassword(email, password)
-                    .then(() => { hideEl(loginScreen); showEl(mainWebsite); hideEl(adminLoginPopup); })
-                    .catch((err) => console.error('Admin login error:', err));
-            }
-
-            function logoutCompat(){
-                auth.signOut().finally(() => { hideEl(mainWebsite); showEl(loginScreen); });
-            }
-
-            // Bind only if elements actually exist and not already bound
-            if (studentLoginForm && !studentLoginForm.dataset.compatBound){
-                studentLoginForm.addEventListener('submit', loginStudentCompat);
-                studentLoginForm.dataset.compatBound = 'true';
-            }
-            if (adminLoginForm && !adminLoginForm.dataset.compatBound){
-                // Avoid double-binding since project already has its own admin submit handler
-                // Only bind if special fields exist (adminEmail/adminPassword) to indicate alternate template
-                if (adminLoginForm['adminEmail'] && adminLoginForm['adminPassword']){
-                    adminLoginForm.addEventListener('submit', adminLoginCompat);
-                }
-                adminLoginForm.dataset.compatBound = 'true';
-            }
-            if (showAdminLoginBtn && !showAdminLoginBtn.dataset.compatBound){
-                showAdminLoginBtn.addEventListener('click', showAdminLoginCompat);
-                showAdminLoginBtn.dataset.compatBound = 'true';
-            }
-            if (closeAdminBtn && !closeAdminBtn.dataset.compatBound){
-                closeAdminBtn.addEventListener('click', () => hideEl(adminLoginPopup));
-                closeAdminBtn.dataset.compatBound = 'true';
-            }
-
-            // Expose optional helpers
-            window.loginStudentCompat = loginStudentCompat;
-            window.adminLoginCompat = adminLoginCompat;
-            window.logoutCompat = logoutCompat;
-        } catch (e) { console.warn('Compat script error:', e); }
-    })();
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9755c7b845dacd72',t:'MTc1NjIzNzAwOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'975aea5a35a6314d',t:'MTc1NjI5MDg1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
