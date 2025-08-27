@@ -205,7 +205,7 @@
 <body class="bg-gray-50">
     <div id="notifications" class="fixed top-4 left-4 z-50 space-y-2"></div>
 
-    <div id="loginScreen" class="min-h-screen gradient-bg flex items-center justify-center p-4">
+    <div id="loginScreen" class="min-h-screen gradient-bg flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md fade-in">
             <div class="text-center mb-8">
                 <div class="robot-animation text-6xl mb-4">🤖</div>
@@ -942,7 +942,6 @@
                 
                 showNotification(`مرحباً بك ${studentName}! تم تسجيل الدخول بنجاح`, 'success');
                 document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('mainWebsite').classList.remove('hidden');
                 document.getElementById('welcomeName').textContent = studentName;
                 document.getElementById('welcomeName2').textContent = studentName;
                 showSection('dashboard');
