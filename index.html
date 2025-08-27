@@ -985,6 +985,9 @@
             showNotification('تم تسجيل الخروج بنجاح', 'info');
         }
 
+        // Bind logout functions for inline onclick
+        window.logout = logout;
+
         // Admin Functions
         function showAdminLogin() {
             document.getElementById('adminLoginModal').classList.remove('hidden');
@@ -995,6 +998,10 @@
             document.getElementById('adminLoginForm').reset();
         }
 
+        // Ensure inline handlers work (bind to window)
+        window.showAdminLogin = showAdminLogin;
+        window.hideAdminLogin = hideAdminLogin;
+
         function logoutAdmin() {
             auth.signOut().catch(console.error).finally(() => {
                 isAdmin = false;
@@ -1003,6 +1010,9 @@
                 showNotification('تم تسجيل خروج المدير', 'info');
             });
         }
+
+        // Bind for inline onclick
+        window.logoutAdmin = logoutAdmin;
 
         // Platform Data
         let platformData = {
