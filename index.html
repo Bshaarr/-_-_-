@@ -216,7 +216,7 @@
                 <p class="text-gray-600">منصة تدريب مهارات الذكاء الاصطناعي</p>
             </div>
             
-            <form id="loginForm" class="space-y-6">
+            <form id="loginForm" class="space-y-6" onsubmit="return manualLoginSubmit(event)">
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2">الاسم الكامل</label>
                     <input type="text" id="studentName" required 
@@ -246,7 +246,7 @@
 
             <!-- Admin Login Button -->
             <div class="mt-6 pt-6 border-t border-gray-200">
-                <button type="button" onclick="showAdminLogin()"
+                <button type="button" id="showAdminLoginBtn" onclick="showAdminLogin()"
                         class="w-full bg-gradient-to-r from-red-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all">
                     <i class="fas fa-user-shield mr-2"></i>دخول المدير
                 </button>
@@ -987,6 +987,29 @@
 
         // Bind logout functions for inline onclick
         window.logout = logout;
+
+        // Reliable manual submit handler to prevent any default navigation
+        function manualLoginSubmit(e){
+            try {
+                if (e && typeof e.preventDefault === 'function') e.preventDefault();
+            } catch(_){}
+            const name = document.getElementById('studentName')?.value?.trim();
+            const phone = document.getElementById('studentPhone')?.value?.trim();
+            const email = document.getElementById('studentEmail')?.value?.trim();
+            if (!name || !phone || !email) { showNotification('يرجى ملء جميع الحقول', 'error'); return false; }
+            currentUser = { name, phone, email, loginDate: new Date().toISOString() };
+            try { localStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch(_){ }
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainWebsite').classList.remove('hidden');
+            document.getElementById('welcomeName').textContent = name;
+            document.getElementById('welcomeName2').textContent = name;
+            showSection('dashboard');
+            loadCourses();
+            loadUserCertificates();
+            saveUser(currentUser).catch(()=>{});
+            return false;
+        }
+        window.manualLoginSubmit = manualLoginSubmit;
 
         // Admin Functions
         function showAdminLogin() {
