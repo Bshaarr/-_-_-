@@ -817,15 +817,22 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
-        // Expose for other scripts to reuse same config/instances without re-initialization
-        window.firebaseConfig = firebaseConfig;
-        window.db = db;
-        window.auth = auth;
-        const allowedAdminEmails = ['bsharabomorad0@gmail.com'];
-        const ADMIN_USERNAME = 'Bashar';
-        const ADMIN_PASSWORD_OBF = 'ccttiibbss7516'; // كلمة المرور بعد إزاحة بسيطة (+1 لكل محرف)
-        function deobfuscateAdminPassword() {
-            return ADMIN_PASSWORD_OBF.split('').map(ch => String.fromCharCode(ch.charCodeAt(0) - 1)).join('');
+        // Expose for other scripts to reuse same config/instances without re-initialization (defensive)
+        if (!window.firebaseConfig) window.firebaseConfig = firebaseConfig;
+        if (!window.db) window.db = db;
+        if (!window.auth) window.auth = auth;
+        // Admin identifiers (defensive, avoid const to prevent redeclare conflicts)
+        var allowedAdminEmails = window.allowedAdminEmails || ['bsharabomorad0@gmail.com'];
+        window.allowedAdminEmails = allowedAdminEmails;
+        var ADMIN_USERNAME = window.ADMIN_USERNAME || 'Bashar';
+        window.ADMIN_USERNAME = ADMIN_USERNAME;
+        var ADMIN_PASSWORD_OBF = window.ADMIN_PASSWORD_OBF || 'ccttiibbss7516'; // كلمة المرور بعد إزاحة بسيطة (+1 لكل محرف)
+        window.ADMIN_PASSWORD_OBF = ADMIN_PASSWORD_OBF;
+        if (typeof window.deobfuscateAdminPassword !== 'function') {
+            function deobfuscateAdminPassword() {
+                return ADMIN_PASSWORD_OBF.split('').map(ch => String.fromCharCode(ch.charCodeAt(0) - 1)).join('');
+            }
+            window.deobfuscateAdminPassword = deobfuscateAdminPassword;
         }
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
 
