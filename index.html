@@ -511,14 +511,6 @@
         </footer>
     </div>
 
-    <div id="userPanel" style="display:none;">
-      <h2>واجهة المستخدمين</h2>
-      </div>
-
-    <div id="adminPanel" style="display:none;">
-      <h2>لوحة المدير</h2>
-      </div>
-
     <div id="adminPanel" class="hidden admin-panel">
         <header class="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-40">
             <div class="px-6 py-4">
@@ -722,399 +714,547 @@
     </div>
 
     <div id="addAnnouncementModal" class="fixed inset-0 modal-backdrop z-50 hidden flex items-center justify-center p-4">
-        ...
-<script>
-    // Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyBT4YJcnZZmUhKVvs7iMp5mdAeWRjixEfI",
-      authDomain: "platform-fd979.firebaseapp.com",
-      projectId: "platform-fd979",
-      storageBucket: "platform-fd979.firebasestorage.app",
-      messagingSenderId: "184754007748",
-      appId: "1:184754007748:web:a849462d9cb2bdb3a6e391",
-      measurementId: "G-9FB64YHKM3"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-
-    const db = firebase.firestore();
-    const auth = firebase.auth();
-
-    // Global Variables
-    let currentUser = null;
-    let isAdmin = false;
-
-    // Utility Functions
-    function showNotification(message, type = 'info') {
-      const notification = document.createElement('div');
-      const colors = {
-        success: 'bg-green-500',
-        error: 'bg-red-500',
-        warning: 'bg-yellow-500',
-        info: 'bg-blue-500'
-      };
-      notification.className = `notification ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg max-w-sm`;
-      notification.textContent = message;
-      const container = document.getElementById('notifications');
-      container.appendChild(notification);
-      setTimeout(() => {
-        notification.remove();
-      }, 4000);
-    }
-
-    // Navigation Functions
-    function showSection(sectionName) {
-      // Hide all sections
-      const sections = ['dashboardSection', 'coursesSection', 'quizSection', 'certificatesSection'];
-      sections.forEach(section => {
-        const element = document.getElementById(section);
-        if (element) element.classList.add('hidden');
-      });
-
-      // Show selected section
-      const targetSection = document.getElementById(sectionName + 'Section');
-      if (targetSection) {
-        targetSection.classList.remove('hidden');
-      }
-
-      // Update navigation buttons - find the clicked button
-      document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('bg-blue-50', 'text-blue-600');
-        btn.classList.add('text-gray-700', 'hover:bg-gray-200');
-      });
-
-      // Find and highlight the correct button based on section name
-      const buttonMap = {
-        'dashboard': 0,
-        'courses': 1,
-        'quiz': 2,
-        'certificates': 3
-      };
-      const buttons = document.querySelectorAll('.nav-btn');
-      const activeButtonIndex = buttonMap[sectionName];
-      if (buttons[activeButtonIndex]) {
-        buttons[activeButtonIndex].classList.remove('text-gray-700', 'hover:bg-gray-200');
-        buttons[activeButtonIndex].classList.add('bg-blue-50', 'text-blue-600');
-      }
-
-      // Load section-specific data
-      if (sectionName === 'courses') {
-        loadCourses();
-      } else if (sectionName === 'certificates') {
-        loadUserCertificates();
-      }
-    }
-
-    function showAdminSection(sectionName) {
-      // Hide all admin sections
-      const sections = document.querySelectorAll('.admin-section');
-      sections.forEach(section => section.classList.add('hidden'));
-
-      // Show selected section
-      const targetSection = document.getElementById('admin' + sectionName.charAt(0).toUpperCase() + sectionName.slice(1) + 'Section');
-      if (targetSection) {
-        targetSection.classList.remove('hidden');
-      }
-
-      // Update navigation buttons
-      document.querySelectorAll('.admin-nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        btn.classList.add('text-white/70');
-      });
-      const targetButton = document.querySelector(`.admin-nav-btn[onclick="showAdminSection('${sectionName}')"]`);
-      if (targetButton) {
-        targetButton.classList.add('active');
-        targetButton.classList.remove('text-white/70');
-      }
-
-      // Load section-specific data
-      if (sectionName === 'stats') {
-        loadAdminStats();
-      } else if (sectionName === 'courses') {
-        loadAdminCourses();
-      } else if (sectionName === 'announcements') {
-        loadAdminAnnouncements();
-      } else if (sectionName === 'certificates') {
-        loadAdminCertificates();
-      } else if (sectionName === 'users') {
-        loadAdminUsers();
-      }
-    }
-  
-    // Add Course Modal functions
-    function showAddCourseModal() {
-      document.getElementById('addCourseModal').classList.remove('hidden');
-    }
-    function hideAddCourseModal() {
-      document.getElementById('addCourseModal').classList.add('hidden');
-    }
-  
-    // Add Announcement Modal functions
-    function showAddAnnouncementModal() {
-      document.getElementById('addAnnouncementModal').classList.remove('hidden');
-    }
-    function hideAddAnnouncementModal() {
-      document.getElementById('addAnnouncementModal').classList.add('hidden');
-    }
-  
-    // Logout Functions
-    function logout() {
-      auth.signOut().then(() => {
-        document.getElementById('mainWebsite').classList.add('hidden');
-        document.getElementById('loginScreen').classList.remove('hidden');
-        showNotification('تم تسجيل الخروج بنجاح', 'success');
-      }).catch(error => {
-        console.error("Logout Error:", error);
-        showNotification('حدث خطأ أثناء تسجيل الخروج', 'error');
-      });
-    }
-  
-    function logoutAdmin() {
-      auth.signOut().then(() => {
-        document.getElementById('adminPanel').classList.add('hidden');
-        document.getElementById('loginScreen').classList.remove('hidden');
-        showNotification('تم تسجيل خروج المدير بنجاح', 'success');
-      }).catch(error => {
-        console.error("Admin Logout Error:", error);
-        showNotification('حدث خطأ أثناء تسجيل الخروج', 'error');
-      });
-    }
-  
-    // Authentication State Change Listener
-    firebase.auth().onAuthStateChanged(user => {
-      if (user) {
-        // User is signed in
-        currentUser = user;
-        document.getElementById('loginScreen').classList.add('hidden');
-  
-        // Show main website for all users
-        document.getElementById('mainWebsite').classList.remove('hidden');
-        document.getElementById('adminPanel').classList.add('hidden'); // Ensure admin panel is hidden by default
-  
-        // Get user's name
-        const displayName = user.displayName;
-        if (displayName) {
-          document.getElementById('welcomeName').textContent = displayName;
-          document.getElementById('welcomeName2').textContent = displayName;
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">إضافة إعلان جديد</h2>
+                <button onclick="hideAddAnnouncementModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="addAnnouncementForm" class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">عنوان الإعلان</label>
+                    <input type="text" id="announcementTitle" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                           placeholder="أدخل عنوان الإعلان">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">محتوى الإعلان</label>
+                    <textarea id="announcementContent" required rows="4"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                              placeholder="أدخل محتوى الإعلان"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">نوع الإعلان</label>
+                    <select id="announcementType" required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                        <option value="info">معلومات عامة</option>
+                        <option value="success">إنجاز أو نجاح</option>
+                        <option value="warning">تحذير أو تنبيه</option>
+                        <option value="error">خطأ أو مشكلة</option>
+                    </select>
+                </div>
+                
+                <div class="flex space-x-3 space-x-reverse pt-4">
+                    <button type="submit" class="flex-1 btn-primary text-white py-3 rounded-lg font-semibold">
+                        إضافة الإعلان
+                    </button>
+                    <button type="button" onclick="hideAddAnnouncementModal()" class="flex-1 bg-gray-500 text-white py-3 rounded-lg font-semibold">
+                        إلغاء
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBT4YJcnZZmUhKVvs7iMp5mdAeWRjixEfI",
+            authDomain: "platform-fd979.firebaseapp.com",
+            projectId: "platform-fd979",
+            storageBucket: "platform-fd979.firebasestorage.app",
+            messagingSenderId: "184754007748",
+            appId: "1:184754007748:web:a849462d9cb2bdb3a6e391",
+            measurementId: "G-9FB64YHKM3"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        
+        // Global Variables
+        let currentUser = null;
+        let isAdmin = false;
+        
+        // Utility Functions
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+            notification.className = `notification ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg max-w-sm`;
+            notification.textContent = message;
+            const container = document.getElementById('notifications');
+            container.appendChild(notification);
+            setTimeout(() => {
+                notification.remove();
+            }, 4000);
         }
-  
-        // Check for admin role
-        user.getIdTokenResult()
-          .then(idTokenResult => {
-            if (idTokenResult.claims.role === 'manager') {
-              // User is a manager, show admin panel
-              document.getElementById('mainWebsite').classList.add('hidden');
-              document.getElementById('adminPanel').classList.remove('hidden');
-              isAdmin = true;
-            } else {
-              // Not a manager, hide admin panel
-              document.getElementById('adminPanel').classList.add('hidden');
-              isAdmin = false;
+        
+        // Navigation Functions
+        function showSection(sectionName) {
+            // Hide all sections
+            const sections = ['dashboardSection', 'coursesSection', 'quizSection', 'certificatesSection'];
+            sections.forEach(section => {
+                const element = document.getElementById(section);
+                if (element) element.classList.add('hidden');
+            });
+            
+            // Show selected section
+            const targetSection = document.getElementById(sectionName + 'Section');
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
             }
-            console.log('User logged in, isAdmin:', isAdmin);
-          })
-          .catch(err => {
-            console.error('Error fetching ID token:', err);
-          });
-      } else {
-        // User is signed out
-        currentUser = null;
-        isAdmin = false;
+            
+            // Update navigation buttons - find the clicked button
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-50', 'text-blue-600');
+                btn.classList.add('text-gray-700', 'hover:bg-gray-200');
+            });
+            
+            // Find and highlight the correct button based on section name
+            const buttonMap = {
+                'dashboard': 0,
+                'courses': 1,
+                'quiz': 2,
+                'certificates': 3
+            };
+            const buttons = document.querySelectorAll('.nav-btn');
+            const activeButtonIndex = buttonMap[sectionName];
+            if (buttons[activeButtonIndex]) {
+                buttons[activeButtonIndex].classList.remove('text-gray-700', 'hover:bg-gray-200');
+                buttons[activeButtonIndex].classList.add('bg-blue-50', 'text-blue-600');
+            }
+            
+            // Load section-specific data
+            if (sectionName === 'courses') {
+                loadCourses();
+            } else if (sectionName === 'certificates') {
+                loadUserCertificates();
+            }
+        }
+        
+        function showAdminSection(sectionName) {
+            // Hide all admin sections
+            const sections = document.querySelectorAll('.admin-section');
+            sections.forEach(section => section.classList.add('hidden'));
+            
+            // Show selected section
+            const targetSection = document.getElementById('admin' + sectionName.charAt(0).toUpperCase() + sectionName.slice(1) + 'Section');
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+            
+            // Update navigation buttons
+            document.querySelectorAll('.admin-nav-btn').forEach(btn => {
+                btn.classList.remove('active', 'bg-white/20');
+                btn.classList.add('text-white/70');
+            });
+            
+            // Add active class to the current button
+            const clickedBtn = event.target.closest('.admin-nav-btn');
+            if (clickedBtn) {
+                clickedBtn.classList.add('active');
+                clickedBtn.classList.remove('text-white/70');
+            }
+            
+            // Load section-specific data
+            if (sectionName === 'stats') {
+                loadStats();
+            } else if (sectionName === 'courses') {
+                loadAdminCourses();
+            } else if (sectionName === 'announcements') {
+                loadAnnouncements();
+            } else if (sectionName === 'certificates') {
+                loadAdminCertificates();
+            } else if (sectionName === 'users') {
+                loadUsers();
+            }
+        }
+        
+        // Admin Management Modals
+        function showAddCourseModal() {
+            document.getElementById('addCourseModal').classList.remove('hidden');
+        }
+        
+        function hideAddCourseModal() {
+            document.getElementById('addCourseModal').classList.add('hidden');
+        }
+        
+        function showAddAnnouncementModal() {
+            document.getElementById('addAnnouncementModal').classList.remove('hidden');
+        }
+        
+        function hideAddAnnouncementModal() {
+            document.getElementById('addAnnouncementModal').classList.add('hidden');
+        }
+        
+        function showAdminLogin() {
+            document.getElementById('adminLoginModal').classList.remove('hidden');
+        }
+        
+        function hideAdminLogin() {
+            document.getElementById('adminLoginModal').classList.add('hidden');
+        }
+        
+        // Authentication Functions
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const studentName = document.getElementById('studentName').value;
+            const studentEmail = document.getElementById('studentEmail').value;
+            const studentPhone = document.getElementById('studentPhone').value;
+            
+            try {
+                const docRef = db.collection('users').doc(studentEmail);
+                const doc = await docRef.get();
+                
+                if (doc.exists) {
+                    // User exists, sign in
+                    const userData = doc.data();
+                    const userCredential = await auth.signInWithEmailAndPassword(studentEmail, userData.password); // Assuming password field exists
+                    currentUser = userCredential.user;
+                } else {
+                    // New user, register
+                    const tempPassword = studentPhone; // Use phone number as temporary password
+                    const userCredential = await auth.createUserWithEmailAndPassword(studentEmail, tempPassword);
+                    currentUser = userCredential.user;
+                    
+                    // Add user to Firestore
+                    await docRef.set({
+                        name: studentName,
+                        phone: studentPhone,
+                        email: studentEmail,
+                        role: 'user', // Default role
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                
+                // Set custom claims for new users (requires server-side function)
+                // This part would be handled by a Cloud Function for production
+                
+                showNotification(`مرحباً بك ${studentName}! تم تسجيل الدخول بنجاح`, 'success');
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainWebsite').classList.remove('hidden');
+                document.getElementById('welcomeName').textContent = studentName;
+                document.getElementById('welcomeName2').textContent = studentName;
+                showSection('dashboard');
+                
+            } catch (error) {
+                console.error("Error signing in or registering:", error);
+                showNotification("فشل تسجيل الدخول. يرجى التحقق من بياناتك.", 'error');
+            }
+        });
+        
+        document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            try {
+                if (username === 'Bashar' && password === 'bbsshhaarr6405') {
+                    // Dummy admin login for development
+                    // In a real app, this should be handled by Firebase Authentication
+                    // with a dedicated admin account and custom claims.
+                    showNotification('تم تسجيل الدخول كمدير', 'success');
+                    isAdmin = true;
+                    document.getElementById('adminLoginModal').classList.add('hidden');
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                    showAdminSection('stats');
+                } else {
+                    showNotification('بيانات الدخول غير صحيحة.', 'error');
+                }
+            } catch (error) {
+                console.error("Admin login error:", error);
+                showNotification("فشل تسجيل الدخول.", 'error');
+            }
+        });
+        
+        function logout() {
+            auth.signOut().then(() => {
+                showNotification('تم تسجيل الخروج بنجاح', 'info');
+                document.getElementById('mainWebsite').classList.add('hidden');
+                document.getElementById('adminPanel').classList.add('hidden');
+                document.getElementById('loginScreen').classList.remove('hidden');
+            }).catch((error) => {
+                console.error("Logout error:", error);
+                showNotification('فشل تسجيل الخروج.', 'error');
+            });
+        }
+        
+        function logoutAdmin() {
+            logout();
+        }
+        
+        // Course Management
+        document.getElementById('addCourseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('courseTitle').value;
+            const description = document.getElementById('courseDescription').value;
+            const instructor = document.getElementById('courseInstructor').value;
+            const lessons = document.getElementById('courseLessons').value;
+            const hours = document.getElementById('courseHours').value;
+            const price = document.getElementById('coursePrice').value;
+            
+            try {
+                await db.collection('courses').add({
+                    title,
+                    description,
+                    instructor,
+                    lessons: Number(lessons),
+                    hours: Number(hours),
+                    price: Number(price),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showNotification('تم إضافة الدورة بنجاح!', 'success');
+                hideAddCourseModal();
+                document.getElementById('addCourseForm').reset();
+            } catch (error) {
+                console.error("Error adding course:", error);
+                showNotification('فشل إضافة الدورة.', 'error');
+            }
+        });
+        
+        // Announcement Management
+        document.getElementById('addAnnouncementForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('announcementTitle').value;
+            const content = document.getElementById('announcementContent').value;
+            const type = document.getElementById('announcementType').value;
+            
+            try {
+                await db.collection('announcements').add({
+                    title,
+                    content,
+                    type,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                showNotification('تم إضافة الإعلان بنجاح!', 'success');
+                hideAddAnnouncementModal();
+                document.getElementById('addAnnouncementForm').reset();
+            } catch (error) {
+                console.error("Error adding announcement:", error);
+                showNotification('فشل إضافة الإعلان.', 'error');
+            }
+        });
+        
+        // Load data functions
+        function loadCourses() {
+            db.collection('courses').orderBy('createdAt', 'desc')
+                .onSnapshot(snap => {
+                    const list = document.getElementById('coursesList');
+                    list.innerHTML = '';
+                    if (snap.empty) {
+                        list.innerHTML = '<p class="text-center text-gray-500 text-lg">لا توجد دورات متاحة حالياً.</p>';
+                        return;
+                    }
+                    snap.forEach(doc => {
+                        const course = doc.data();
+                        const courseCard = `
+                            <div class="course-card rounded-2xl p-6 shadow-lg flex items-center justify-between">
+                                <div class="flex-1">
+                                    <h3 class="text-2xl font-bold text-gray-800 mb-2">${course.title}</h3>
+                                    <p class="text-gray-600 mb-4">${course.description}</p>
+                                    <div class="flex items-center space-x-4 space-x-reverse text-sm text-gray-500">
+                                        <span><i class="fas fa-chalkboard-teacher mr-2"></i>${course.instructor}</span>
+                                        <span><i class="fas fa-book-open mr-2"></i>${course.lessons} درس</span>
+                                        <span><i class="fas fa-clock mr-2"></i>${course.hours} ساعة</span>
+                                        <span><i class="fas fa-dollar-sign mr-2"></i>${course.price} ريال</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-all">
+                                        التسجيل
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        list.innerHTML += courseCard;
+                    });
+                });
+        }
+        
+        function loadUserCertificates() {
+            // This is a placeholder. A real implementation would query user-specific certificates.
+            const approvedList = document.getElementById('userApprovedCertificates');
+            const pendingList = document.getElementById('pendingCertificatesList');
+            
+            approvedList.innerHTML = '<p class="text-center text-gray-500 text-lg">لا توجد شهادات معتمدة حالياً.</p>';
+            pendingList.innerHTML = '<p class="text-center text-gray-500 text-lg">لا توجد طلبات معلقة حالياً.</p>';
+        }
+        
+        function loadStats() {
+            // Placeholder functions for stats
+            db.collection('users').get().then(snap => {
+                document.getElementById('totalUsersCount').textContent = snap.size;
+            });
+            db.collection('registrations').get().then(snap => {
+                document.getElementById('totalRegistrationsCount').textContent = snap.size;
+            });
+            db.collection('certificates').where('status', '==', 'pending').get().then(snap => {
+                document.getElementById('pendingCertificatesCount').textContent = snap.size;
+            });
+            db.collection('certificates').where('status', '==', 'approved').get().then(snap => {
+                document.getElementById('totalCertificatesCount').textContent = snap.size;
+            });
+        }
+        
+        function loadAdminCourses() {
+            // Admin version of loading courses with management options
+            db.collection('courses').orderBy('createdAt', 'desc')
+                .onSnapshot(snap => {
+                    const list = document.getElementById('adminCoursesList');
+                    list.innerHTML = '';
+                    if (snap.empty) {
+                        list.innerHTML = '<p class="text-center text-white/70 text-lg">لا توجد دورات حالياً.</p>';
+                        return;
+                    }
+                    snap.forEach(doc => {
+                        const course = doc.data();
+                        const courseDocId = doc.id;
+                        const courseCard = `
+                            <div class="admin-card rounded-xl p-6 flex items-center justify-between text-white">
+                                <div class="flex-1">
+                                    <h4 class="text-xl font-bold">${course.title}</h4>
+                                    <p class="text-white/70 text-sm">${course.instructor}</p>
+                                </div>
+                                <div class="flex space-x-2 space-x-reverse">
+                                    <button onclick="editCourse('${courseDocId}')" class="btn-warning p-2 rounded-full text-white"><i class="fas fa-edit"></i></button>
+                                    <button onclick="deleteCourse('${courseDocId}')" class="btn-danger p-2 rounded-full text-white"><i class="fas fa-trash-alt"></i></button>
+                                </div>
+                            </div>
+                        `;
+                        list.innerHTML += courseCard;
+                    });
+                });
+        }
+        
+        function editCourse(courseId) {
+            showNotification(`تعديل الدورة: ${courseId}`, 'warning');
+            // Implement edit logic
+        }
+        
+        function deleteCourse(courseId) {
+            if (confirm('هل أنت متأكد من حذف هذه الدورة؟')) {
+                db.collection('courses').doc(courseId).delete()
+                    .then(() => showNotification('تم حذف الدورة بنجاح.', 'success'))
+                    .catch(err => showNotification('فشل حذف الدورة.', 'error'));
+            }
+        }
+        
+        function loadAnnouncements() {
+            db.collection('announcements').orderBy('createdAt', 'desc')
+                .onSnapshot(snap => {
+                    const list = document.getElementById('adminAnnouncementsList');
+                    list.innerHTML = '';
+                    if (snap.empty) {
+                        list.innerHTML = '<p class="text-center text-white/70 text-lg">لا توجد إعلانات حالياً.</p>';
+                        return;
+                    }
+                    snap.forEach(doc => {
+                        const announcement = doc.data();
+                        const announcementDocId = doc.id;
+                        const colors = {
+                            info: 'bg-blue-500',
+                            success: 'bg-green-500',
+                            warning: 'bg-yellow-500',
+                            error: 'bg-red-500'
+                        };
+                        const announcementCard = `
+                            <div class="admin-card rounded-xl p-6 flex items-center justify-between text-white ${colors[announcement.type]}">
+                                <div class="flex-1">
+                                    <h4 class="text-xl font-bold">${announcement.title}</h4>
+                                    <p class="text-sm">${announcement.content}</p>
+                                </div>
+                                <button onclick="deleteAnnouncement('${announcementDocId}')" class="btn-danger p-2 rounded-full text-white"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        `;
+                        list.innerHTML += announcementCard;
+                    });
+                });
+        }
+        
+        function deleteAnnouncement(announcementId) {
+            if (confirm('هل أنت متأكد من حذف هذا الإعلان؟')) {
+                db.collection('announcements').doc(announcementId).delete()
+                    .then(() => showNotification('تم حذف الإعلان بنجاح.', 'success'))
+                    .catch(err => showNotification('فشل حذف الإعلان.', 'error'));
+            }
+        }
+        
+        function loadAdminCertificates() {
+            // Admin version of certificate management
+            const pendingList = document.getElementById('pendingCertificatesAdmin');
+            const approvedList = document.getElementById('approvedCertificatesAdmin');
+            
+            pendingList.innerHTML = '<p class="text-white/70">لا توجد طلبات معلقة.</p>';
+            approvedList.innerHTML = '<p class="text-white/70">لا توجد شهادات معتمدة.</p>';
+        }
+        
+        function loadUsers() {
+            db.collection('users').onSnapshot(snap => {
+                const list = document.getElementById('usersList');
+                list.innerHTML = '';
+                snap.forEach(doc => {
+                    const user = doc.data();
+                    const userItem = `
+                        <div class="admin-card rounded-xl p-4 text-white flex justify-between items-center">
+                            <div>
+                                <p class="font-semibold">${user.name}</p>
+                                <p class="text-sm text-white/70">${user.email}</p>
+                            </div>
+                            <span class="text-xs px-2 py-1 rounded-full bg-blue-500">${user.role}</span>
+                        </div>
+                    `;
+                    list.innerHTML += userItem;
+                });
+            });
+        }
+        
+        // Initial state
         document.getElementById('loginScreen').classList.remove('hidden');
-        document.getElementById('mainWebsite').classList.add('hidden');
-        document.getElementById('adminPanel').classList.add('hidden');
-      }
-    });
-  
-    // Login with Email/Password
-    // This is a placeholder for your existing login logic
-    const loginForm = document.getElementById('loginForm');
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      // Your existing logic for creating/signing in a student
-      showNotification('جاري تسجيل الدخول...', 'info');
-    });
-  
-    // Admin Login
-    const adminLoginForm = document.getElementById('adminLoginForm');
-    adminLoginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const adminUsername = document.getElementById('adminUsername').value;
-      const adminPassword = document.getElementById('adminPassword').value;
-  
-      // This is a placeholder for your admin login logic
-      // In a real app, you would use Firebase Auth with a specific admin email/password
-      if (adminUsername === "Bashar" && adminPassword === "bbsshhaarr6405") {
-        // Simulate successful admin login
-        // You should use a proper Firebase authentication method here
-        showNotification('تم تسجيل دخول المدير بنجاح. يتم التحقق من الصلاحيات...', 'success');
-        // This part needs to be handled by your server-side logic
-        // For demonstration, we'll assume a successful login leads to the admin panel
-        // document.getElementById('mainWebsite').classList.add('hidden');
-        // document.getElementById('adminPanel').classList.remove('hidden');
-      } else {
-        showNotification('اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
-      }
-    });
-  
-    // You might already have these functions, but I'm adding them here for a complete example.
-    function showAdminLogin() {
-      document.getElementById('adminLoginModal').classList.remove('hidden');
-    }
-  
-    function hideAdminLogin() {
-      document.getElementById('adminLoginModal').classList.add('hidden');
-    }
-  
-    // Functionality for loading courses and other data
-    // (This part seems to be from a previous script that wasn't included completely)
-    function loadCourses() {
-      console.log('Loading courses...');
-      // Your code to load courses from Firestore
-    }
-  
-    function loadUserCertificates() {
-      console.log('Loading user certificates...');
-      // Your code to load user certificates from Firestore
-    }
-  
-    // Admin functions
-    function loadAdminStats() {
-      console.log('Loading admin stats...');
-    }
-    function loadAdminCourses() {
-      console.log('Loading admin courses...');
-    }
-    function loadAdminAnnouncements() {
-      console.log('Loading admin announcements...');
-    }
-    function loadAdminCertificates() {
-      console.log('Loading admin certificates...');
-    }
-    function loadAdminUsers() {
-      console.log('Loading admin users...');
-    }
-  
-    // Example: Live course list for all users
-    db.collection('courses').orderBy('createdAt', 'desc')
-      .onSnapshot(snap => {
-        const list = document.getElementById('coursesList');
-        if (list) {
-          list.innerHTML = '';
-          snap.forEach(doc => {
-            const c = doc.data();
-            list.innerHTML += `<li>${c.title} — ${c.trainer}</li>`;
-          });
-        }
-      });
-  
-    // Example: Live course list for admin
-    db.collection('courses').orderBy('createdAt', 'desc')
-      .onSnapshot(snap => {
-        const list = document.getElementById('adminCoursesList');
-        if (list) {
-          list.innerHTML = '';
-          snap.forEach(doc => {
-            const c = doc.data();
-            // Create a more detailed card for admin view
-            list.innerHTML += `
-              <div class="course-card rounded-xl p-4 text-white">
-                <h4 class="text-xl font-bold mb-2">${c.title}</h4>
-                <p class="text-white/70 text-sm mb-2">المدرب: ${c.trainer}</p>
-                <p class="text-white/70 text-sm mb-4">السعر: ${c.price} ريال</p>
-              </div>
-            `;
-          });
-        }
-      });
-  
-    // Admin add course form submission
-    const addCourseForm = document.getElementById('addCourseForm');
-    if (addCourseForm) {
-      addCourseForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        // Get form values
-        const title = document.getElementById('courseTitle').value;
-        const desc = document.getElementById('courseDescription').value;
-        const trainer = document.getElementById('courseInstructor').value;
-        const lessons = document.getElementById('courseLessons').value;
-        const hours = document.getElementById('courseHours').value;
-        const price = document.getElementById('coursePrice').value;
-  
-        // Add to Firestore
-        try {
-          await db.collection('courses').add({
-            title, desc, trainer,
-            lessons: Number(lessons), hours: Number(hours), price: Number(price),
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          showNotification('تمت إضافة الدورة بنجاح', 'success');
-          addCourseForm.reset();
-          hideAddCourseModal();
-        } catch (error) {
-          console.error("Error adding document: ", error);
-          showNotification('حدث خطأ أثناء إضافة الدورة', 'error');
-        }
-      });
-    }
-  
-    // Add Announcement form submission
-    const addAnnouncementForm = document.getElementById('addAnnouncementForm');
-    if (addAnnouncementForm) {
-      addAnnouncementForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const title = document.getElementById('announcementTitle').value;
-        const content = document.getElementById('announcementContent').value;
-        const type = document.getElementById('announcementType').value;
-  
-        try {
-          await db.collection('announcements').add({
-            title, content, type,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          showNotification('تمت إضافة الإعلان بنجاح', 'success');
-          addAnnouncementForm.reset();
-          hideAddAnnouncementModal();
-        } catch (error) {
-          console.error("Error adding announcement: ", error);
-          showNotification('حدث خطأ أثناء إضافة الإعلان', 'error');
-        }
-      });
-    }
-  
-  </script>
+        
+    </script>
+    
 <script>
+// Authentication state listener to show/hide panels based on user role
 firebase.auth().onAuthStateChanged(user => {
   if (user) {
-    // كل المستخدمين يظهرون واجهة المستخدم العادية
-    document.getElementById('userPanel').style.display = 'block';
+    // Show the user's panel by default
+    document.getElementById('mainWebsite').classList.remove('hidden');
+    document.getElementById('loginScreen').classList.add('hidden'); // Hide login screen
 
-    // تحقق من صلاحية المدير
+    // Check for manager role
     user.getIdTokenResult()
       .then(idTokenResult => {
         if (idTokenResult.claims.role === 'manager') {
-          document.getElementById('adminPanel').style.display = 'block';
+          // If manager, hide user panel and show admin panel
+          document.getElementById('mainWebsite').classList.add('hidden');
+          document.getElementById('adminPanel').classList.remove('hidden');
         } else {
-          document.getElementById('adminPanel').style.display = 'none';
+          // If not manager, hide admin panel
+          document.getElementById('adminPanel').classList.add('hidden');
         }
       })
       .catch(err => console.error('Error fetching token:', err));
 
   } else {
-    // المستخدم غير مسجل الدخول
-    document.getElementById('userPanel').style.display = 'none';
-    document.getElementById('adminPanel').style.display = 'none';
+    // User is signed out, hide all panels and show the login screen
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('mainWebsite').classList.add('hidden');
+    document.getElementById('adminPanel').classList.add('hidden');
   }
 });
 </script>
-
-<div id="userPanel" style="display:none;">
-  <h2>واجهة المستخدمين</h2>
-  </div>
-
-<div id="adminPanel" style="display:none;">
-  <h2>لوحة المدير</h2>
-  </div>
 </body>
 </html>
